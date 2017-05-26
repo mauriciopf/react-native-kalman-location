@@ -1,7 +1,12 @@
 react-native-kalman-location
 ============================
 
-Acquires location via google play services and runs a kalman filter on the stream of updates.
+Acquires location coordinates via google play services and runs a kalman filter on the stream of updates.
+
+DEMO
+====
+![Alt text](kalman.gif?raw=true "Demo Gif")
+
 
 ### Installation
  
@@ -106,7 +111,7 @@ export default class RNKalmanLocationExample extends PureComponent {
 
 	componentDidMount() {
 		// Register Listener Callback - has to be removed later
-		this.evEmitter = DeviceEventEmitter.addListener('updateLocation', this.onLocationChange);
+		this.evEmitter = DeviceEventEmitter.addListener('kalmanFilter', this.onLocationChange);
 		// Initialize RNKalmanLocation to start emiting location
 		RNKalmanLocation.getLocation();
 	}
