@@ -50,7 +50,7 @@ public class KalmanLocation extends ReactContextBaseJavaModule {
     public void getLocation() {
 						mKalmanLocationManager = new KalmanLocationManager(mReactContext.getApplicationContext());
 						mKalmanLocationManager.requestLocationUpdates(
-								UseProvider.GPS, FILTER_TIME, GPS_TIME, NET_TIME, mLocationListener, true);
+								UseProvider.GPS_AND_NET, FILTER_TIME, GPS_TIME, NET_TIME, mLocationListener, true);
     }
 
     @ReactMethod
