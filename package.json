@@ -1,0 +1,24 @@
+{
+  "name": "react-native-kalman-location",
+  "version": "0.2.0",
+  "description": "Location Module for React Native Android that implements a Kalman Filter",
+  "main": "index.android.js",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "react-native",
+    "react-component",
+    "android",
+    "google-play-services",
+    "kalman",
+    "kalman-location",
+    "google",
+    "location"
+  ],
+  "author": {
+    "name": "Seun LanLege"
+  },
+  "license": "MIT"
+}
