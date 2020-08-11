@@ -1,20 +1,31 @@
 package com.seunlanlege.kalmanlocation;
 
-import android.content.Context;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
 
-import static com.seunlanlege.kalmanlocation.KalmanLocationManager.KALMAN_PROVIDER;
-import static com.seunlanlege.kalmanlocation.KalmanLocationManager.UseProvider;
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.google.android.gms.location.LocationAvailability;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 
 class LooperThread extends Thread {
+
+    private static final int DEFAULT_ACCURACY = LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY;
+    private static final long DEFAULT_INTERVAL = 1000;
+    private static final long DEFAULT_FASTEST_INTERVAL = 1000;
+    private static final float DEFAULT_DISTANCE_FILTER = 100;
+    public static final String KALMAN_PROVIDER = "kalman";
 
     private static final int THREAD_PRIORITY = 5;
 
@@ -25,16 +36,10 @@ class LooperThread extends Thread {
     private static final double COORDINATE_NOISE = 4.0 * METER_TO_DEG;
     private static final double ALTITUDE_NOISE = 10.0;
 
-    private final Context mContext;
+    private final ReactApplicationContext mContext;
     private final Handler mClientHandler;
-    private final LocationManager mLocationManager;
 
-    private final UseProvider mUseProvider;
     private final long mMinTimeFilter;
-    private final long mMinTimeGpsProvider;
-    private final long mMinTimeNetProvider;
-    private final LocationListener mClientLocationListener;
-    private final boolean mForwardProviderUpdates;
 
     // Thread
     private Looper mLooper;
@@ -44,39 +49,35 @@ class LooperThread extends Thread {
 
     private Tracker1D mLatitudeTracker, mLongitudeTracker, mAltitudeTracker;
 
+    // FuseLocationProvider
+    private FusedLocationProviderClient mFusedProviderClient;
+    private LocationRequest mLocationRequest;
+    private int mLocationPriority = DEFAULT_ACCURACY;
+    private long mUpdateInterval = DEFAULT_INTERVAL;
+    private long mFastestInterval = DEFAULT_FASTEST_INTERVAL;
+    private float mDistanceFilter = DEFAULT_DISTANCE_FILTER;
+
     /**
      *
      * @param context
-     * @param useProvider
      * @param minTimeFilter
-     * @param minTimeGpsProvider
-     * @param minTimeNetProvider
-     * @param locationListener
-     * @param forwardProviderUpdates
      */
-    LooperThread(
-            Context context,
-            UseProvider useProvider,
-            long minTimeFilter,
-            long minTimeGpsProvider,
-            long minTimeNetProvider,
-            LocationListener locationListener,
-            boolean forwardProviderUpdates)
+    LooperThread(ReactApplicationContext context, long minTimeFilter)
     {
         mContext = context;
+        mFusedProviderClient = LocationServices.getFusedLocationProviderClient(mContext);
+        createLocationRequest();
         mClientHandler = new Handler();
-        mLocationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
-
-        mUseProvider = useProvider;
-
         mMinTimeFilter = minTimeFilter;
-        mMinTimeGpsProvider = minTimeGpsProvider;
-        mMinTimeNetProvider = minTimeNetProvider;
-
-        mClientLocationListener = locationListener;
-        mForwardProviderUpdates = forwardProviderUpdates;
-
         start();
+    }
+
+    private void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setPriority(mLocationPriority)
+                .setInterval(mUpdateInterval)
+                .setFastestInterval(mFastestInterval)
+                .setSmallestDisplacement(mDistanceFilter);
     }
 
     @Override
@@ -86,33 +87,30 @@ class LooperThread extends Thread {
 
         Looper.prepare();
         mLooper = Looper.myLooper();
-
-        if (mUseProvider == UseProvider.GPS || mUseProvider == UseProvider.GPS_AND_NET) {
-
-            mLocationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER, mMinTimeGpsProvider, 0.0f, mOwnLocationListener, mLooper);
-        }
-
-        if (mUseProvider == UseProvider.NET || mUseProvider == UseProvider.GPS_AND_NET) {
-
-            mLocationManager.requestLocationUpdates(
-                    LocationManager.NETWORK_PROVIDER, mMinTimeNetProvider, 0.0f, mOwnLocationListener, mLooper);
-        }
-
+        mFusedProviderClient.requestLocationUpdates(mLocationRequest, mLocationCallback, mLooper);
         Looper.loop();
     }
 
-    public void close() {
-
-        mLocationManager.removeUpdates(mOwnLocationListener);
+    public void removeLocationUpdates() {
+        if (mFusedProviderClient != null && mLocationCallback != null) {
+            mFusedProviderClient.removeLocationUpdates(mLocationCallback);
+            mLocationCallback = null;
+        }
         mLooper.quit();
     }
 
-    private LocationListener mOwnLocationListener = new LocationListener() {
+    private LocationCallback mLocationCallback = new LocationCallback() {
+        @Override
+        public void onLocationAvailability(LocationAvailability locationAvailability) {
+            if (!locationAvailability.isLocationAvailable()) {
+                mContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                        .emit("geolocationError", buildError("Unable to retrieve location"));
+            }
+        }
 
         @Override
-        public void onLocationChanged(final Location location) {
-
+        public void onLocationResult(LocationResult locationResult) {
+            final Location location = locationResult.getLastLocation();
             // Reusable
             final double accuracy = location.getAccuracy();
             double position, noise;
@@ -168,19 +166,6 @@ class LooperThread extends Thread {
             // Reset predicted flag
             mPredicted = false;
 
-            // Forward update if requested
-            if (mForwardProviderUpdates) {
-
-                mClientHandler.post(new Runnable() {
-
-                    @Override
-                    public void run() {
-
-                        mClientLocationListener.onLocationChanged(new Location(location));
-                    }
-                });
-            }
-
             // Update last location
             if (location.getProvider().equals(LocationManager.GPS_PROVIDER)
                     || mLastLocation == null || mLastLocation.getProvider().equals(LocationManager.NETWORK_PROVIDER)) {
@@ -188,61 +173,21 @@ class LooperThread extends Thread {
                 mLastLocation = new Location(location);
             }
 
+            mClientHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        mContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                .emit("geolocationDidChange", locationToMap(new Location((location))));
+                    }
+                });
+
             // Enable filter timer if this is our first measurement
             if (mOwnHandler == null) {
-
                 mOwnHandler = new Handler(mLooper, mOwnHandlerCallback);
                 mOwnHandler.sendEmptyMessageDelayed(0, mMinTimeFilter);
             }
         }
-
-        @Override
-        public void onStatusChanged(String provider, final int status, final Bundle extras) {
-
-            final String finalProvider = provider;
-
-            mClientHandler.post(new Runnable() {
-
-                @Override
-                public void run() {
-
-                    mClientLocationListener.onStatusChanged(finalProvider, status, extras);
-                }
-            });
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-
-            final String finalProvider = provider;
-
-            mClientHandler.post(new Runnable() {
-
-                @Override
-                public void run() {
-
-                    mClientLocationListener.onProviderEnabled(finalProvider);
-                }
-            });
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-
-            final String finalProvider = provider;
-
-            mClientHandler.post(new Runnable() {
-
-                @Override
-                public void run() {
-
-                    mClientLocationListener.onProviderDisabled(finalProvider);
-                }
-            });
-        }
     };
-
-
 
     private Handler.Callback mOwnHandlerCallback = new Handler.Callback() {
 
@@ -286,11 +231,10 @@ class LooperThread extends Thread {
 
             // Post the update in the client (UI) thread
             mClientHandler.post(new Runnable() {
-
                 @Override
                 public void run() {
-
-                    mClientLocationListener.onLocationChanged(location);
+                    mContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                            .emit("geolocationDidChange", locationToMap(location));
                 }
             });
 
@@ -302,4 +246,33 @@ class LooperThread extends Thread {
             return true;
         }
     };
+
+    private static WritableMap locationToMap(Location location) {
+        WritableMap map = Arguments.createMap();
+        WritableMap coords = Arguments.createMap();
+        coords.putDouble("latitude", location.getLatitude());
+        coords.putDouble("longitude", location.getLongitude());
+        coords.putDouble("altitude", location.getAltitude());
+        coords.putDouble("accuracy", location.getAccuracy());
+        coords.putDouble("heading", location.getBearing());
+        coords.putDouble("speed", location.getSpeed());
+        map.putMap("coords", coords);
+        map.putDouble("timestamp", location.getTime());
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            map.putBoolean("mocked", location.isFromMockProvider());
+        }
+
+        return map;
+    }
+
+    public static WritableMap buildError(String message) {
+        WritableMap error = Arguments.createMap();
+
+        if (message != null) {
+            error.putString("message", message);
+        }
+
+        return error;
+    }
 }
