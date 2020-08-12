@@ -7,13 +7,10 @@ import com.facebook.react.bridge.ReactMethod;
 
 public class KalmanLocation extends ReactContextBaseJavaModule {
 		public static final String REACT_CLASS = "RNKalmanLocation";
-
-		private static final long FILTER_TIME = 200;
-
 		public static final String TAG = KalmanLocation.class.getSimpleName();
 
 		ReactApplicationContext mReactContext;
-    	private LooperThread mLooper2Thread;
+    private LooperThread mLooper2Thread;
 
 
 	public KalmanLocation(ReactApplicationContext reactContext) {
@@ -30,7 +27,7 @@ public class KalmanLocation extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void getLocation() {
-		mLooper2Thread = new LooperThread(mReactContext, FILTER_TIME);
+		mLooper2Thread = new LooperThread(mReactContext);
     }
 
     @ReactMethod

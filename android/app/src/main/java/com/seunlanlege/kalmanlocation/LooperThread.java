@@ -25,6 +25,7 @@ class LooperThread extends Thread {
     private static final long DEFAULT_INTERVAL = 1000;
     private static final long DEFAULT_FASTEST_INTERVAL = 1000;
     private static final float DEFAULT_DISTANCE_FILTER = 100;
+    private static final long FILTER_TIME = 200;
     public static final String KALMAN_PROVIDER = "kalman";
 
     private static final int THREAD_PRIORITY = 5;
@@ -38,8 +39,6 @@ class LooperThread extends Thread {
 
     private final ReactApplicationContext mContext;
     private final Handler mClientHandler;
-
-    private final long mMinTimeFilter;
 
     // Thread
     private Looper mLooper;
@@ -56,19 +55,17 @@ class LooperThread extends Thread {
     private long mUpdateInterval = DEFAULT_INTERVAL;
     private long mFastestInterval = DEFAULT_FASTEST_INTERVAL;
     private float mDistanceFilter = DEFAULT_DISTANCE_FILTER;
+    private long mMinTimeFilter = FILTER_TIME;
 
     /**
-     *
      * @param context
-     * @param minTimeFilter
      */
-    LooperThread(ReactApplicationContext context, long minTimeFilter)
+    LooperThread(ReactApplicationContext context)
     {
         mContext = context;
         mFusedProviderClient = LocationServices.getFusedLocationProviderClient(mContext);
         createLocationRequest();
         mClientHandler = new Handler();
-        mMinTimeFilter = minTimeFilter;
         start();
     }
 
