@@ -1,12 +1,5 @@
-/**
- * @providesModule RNGLocation
- */
-
 'use strict';
 
-/**
- * This Module is a Quick and Dirty Hack to return Location from Google Play Services Location for Android
- */
+import Geolocation from './implementation.native';
 
-var { NativeModules } = require('react-native');
-export default NativeModules.RNKalmanLocation;
+module.exports = Geolocation;
