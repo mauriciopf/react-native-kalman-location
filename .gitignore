@@ -1,4 +1,9 @@
 *.iml
+android/.idea
+android/.gradle
+android/.project
+android/app/.project
+.idea
 .gradle
 /local.properties
 /.idea/workspace.xml

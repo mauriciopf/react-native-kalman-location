@@ -4,7 +4,7 @@ let subscriptions = [];
 
 const Geolocation = {
   watchPosition: function(success, error) {
-    RNKalmanLocation.startObserving();
+    RNKalmanLocation.getLocation();
     const watchID = subscriptions.length;
     subscriptions.push([
       GeolocationEventEmitter.addListener("geolocationDidChange", success),

@@ -5,7 +5,7 @@
   "main": "index.android.js",
   "repository": {
     "type": "git",
-    "url": "git@github.com:seunlanlege/react-native-kalman-location.git"
+    "url": "https://github.com/mauriciopf/react-native-kalman-location.git"
   },
   "keywords": [
     "react-native",

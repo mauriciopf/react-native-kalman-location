@@ -255,6 +255,7 @@ class LooperThread extends Thread {
         coords.putDouble("speed", location.getSpeed());
         map.putMap("coords", coords);
         map.putDouble("timestamp", location.getTime());
+        map.putString("provider", location.getProvider());
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             map.putBoolean("mocked", location.isFromMockProvider());

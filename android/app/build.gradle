@@ -30,7 +30,7 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    compile 'com.facebook.react:react-native:0.12.+'
+    implementation "com.facebook.react:react-native:+" // From node_modules
     compile 'com.google.android.gms:play-services-location:8.3.0'
     implementation "com.google.android.gms:play-services-location:17.0.0"
 }
